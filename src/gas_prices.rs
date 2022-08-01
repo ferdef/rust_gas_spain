@@ -4,38 +4,6 @@ use std::collections::HashMap;
 use super::gas_structures::{Gas, Entry, FileStruct};
 use super::gas_files::{load, store};
 
-pub async fn retrieve_gas_data() -> Result<Gas, reqwest::Error> {
-    let todos: Gas = reqwest::Client::new()
-        .get("https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/")
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    Ok(todos)
-}
-
-pub fn group_by_region(gas: &Gas) -> Result<FileStruct, Error> {
-    let mut regions: HashMap<String, Vec<Entry>> = HashMap::new();
-    
-
-    for entry in &gas.lista_eess_precio {
-        if !regions.contains_key(&entry.provincia) {
-            regions.insert(entry.provincia.to_owned(), Vec::new());
-        }
-        let v = regions.get_mut(&entry.provincia).unwrap();
-        let new_entry: Entry = entry.clone();
-        v.push(new_entry);
-    }
-
-    let result = FileStruct {
-        date: gas.fecha.to_owned(),
-        regions: regions
-    };
-
-    Ok(result)
-}
-
 pub async fn retrieve_by_region() -> Result<FileStruct, Error> {
     let result = match retrieve_gas_data().await {
         Ok(data) => match group_by_region(&data) {
@@ -82,6 +50,38 @@ pub async fn retrieve_last_gas_info() -> Result<FileStruct, Error> {
     };
 
     Ok(file_data)
+}
+
+async fn retrieve_gas_data() -> Result<Gas, reqwest::Error> {
+    let todos: Gas = reqwest::Client::new()
+        .get("https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/")
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    Ok(todos)
+}
+
+fn group_by_region(gas: &Gas) -> Result<FileStruct, Error> {
+    let mut regions: HashMap<String, Vec<Entry>> = HashMap::new();
+    
+
+    for entry in &gas.lista_eess_precio {
+        if !regions.contains_key(&entry.provincia) {
+            regions.insert(entry.provincia.to_owned(), Vec::new());
+        }
+        let v = regions.get_mut(&entry.provincia).unwrap();
+        let new_entry: Entry = entry.clone();
+        v.push(new_entry);
+    }
+
+    let result = FileStruct {
+        date: gas.fecha.to_owned(),
+        regions: regions
+    };
+
+    Ok(result)
 }
 
 fn check_date(data: &FileStruct) -> bool {
